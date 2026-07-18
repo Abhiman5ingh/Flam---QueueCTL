@@ -1,4 +1,4 @@
-# queuectl
+# QueueCTL
 
 A CLI-based background job queue system: enqueue jobs, run one or more worker
 processes, retry failures with exponential backoff, and park permanently
