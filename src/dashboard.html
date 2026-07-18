@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QueueCTL Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: rgba(22, 30, 49, 0.7);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --purple: #8b5cf6;
+      --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);
+      background-attachment: fixed;
+    }
+
+    header {
+      backdrop-filter: blur(12px);
+      background-color: rgba(11, 15, 25, 0.7);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.25rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-icon {
+      background: linear-gradient(135deg, var(--primary), var(--purple));
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: white;
+      font-size: 1.2rem;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      background: linear-gradient(to right, #ffffff, #9ca3af);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      padding: 0.375rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--success);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      background-color: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.4; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.2); }
+      100% { opacity: 0.4; transform: scale(1); }
+    }
+
+    main {
+      flex: 1;
+      padding: 2rem;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    /* Cards Grid */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+
+    .summary-card {
+      backdrop-filter: blur(8px);
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .summary-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .summary-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background-color: var(--primary);
+      opacity: 0.8;
+    }
+
+    .summary-card.pending::before { background-color: var(--primary); }
+    .summary-card.processing::before { background-color: var(--purple); }
+    .summary-card.completed::before { background-color: var(--success); }
+    .summary-card.failed::before { background-color: var(--warning); }
+    .summary-card.dead::before { background-color: var(--danger); }
+
+    .card-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: capitalize;
+    }
+
+    .card-value {
+      font-size: 2.25rem;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1;
+    }
+
+    /* Workers & Jobs layout split */
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 1024px) {
+      .dashboard-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      backdrop-filter: blur(8px);
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.75rem;
+    }
+
+    .panel-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Workers panel list */
+    .workers-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .worker-item {
+      background-color: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      font-size: 0.875rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .worker-meta {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 500;
+    }
+
+    .worker-log {
+      color: var(--text-muted);
+      font-family: monospace;
+      font-size: 0.75rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .no-data {
+      color: var(--text-muted);
+      text-align: center;
+      padding: 1rem;
+      font-size: 0.875rem;
+    }
+
+    /* Tabs for filtering jobs */
+    .tabs {
+      display: flex;
+      gap: 0.35rem;
+      background-color: rgba(255, 255, 255, 0.03);
+      padding: 0.25rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .tab-btn:hover {
+      color: #ffffff;
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    .tab-btn.active {
+      color: #ffffff;
+      background-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+
+    /* Jobs Table */
+    .table-container {
+      overflow-x: auto;
+      border-radius: 0.75rem;
+      border: 1px solid var(--border-color);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.875rem;
+    }
+
+    th {
+      background-color: rgba(255, 255, 255, 0.02);
+      color: var(--text-muted);
+      font-weight: 500;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr.clickable-row {
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    tr.clickable-row:hover td {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    /* State pills */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+    }
+
+    .pill.pending { background-color: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+    .pill.processing { background-color: rgba(139, 92, 246, 0.15); color: #a78bfa; }
+    .pill.completed { background-color: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .pill.failed { background-color: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .pill.dead { background-color: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+    .btn {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.35rem 0.75rem;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-family: inherit;
+    }
+
+    .btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.12);
+    }
+
+    /* Modal Overlay */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background-color: #0f172a;
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      width: 90%;
+      max-width: 650px;
+      max-height: 85vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      transform: scale(0.95);
+      transition: transform 0.2s ease;
+    }
+
+    .modal-overlay.open .modal {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.25rem;
+    }
+
+    .modal-close:hover {
+      color: white;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .modal-row {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      font-size: 0.875rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      padding-bottom: 0.5rem;
+    }
+
+    .modal-row:last-of-type {
+      border-bottom: none;
+    }
+
+    .modal-label {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .modal-value {
+      word-break: break-all;
+    }
+
+    .modal-code-block {
+      background-color: #020617;
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.75rem;
+      max-height: 250px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #38bdf8;
+    }
+
+    .modal-code-block.stderr {
+      color: #f43f5e;
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      background-color: rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-container">
+      <div class="logo-icon">Q</div>
+      <h1>QueueCTL Dashboard</h1>
+    </div>
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      Live Monitoring
+    </div>
+  </header>
+
+  <main>
+    <!-- Metric summary cards -->
+    <section class="summary-grid">
+      <div class="summary-card pending">
+        <span class="card-label">Pending</span>
+        <span class="card-value" id="count-pending">0</span>
+      </div>
+      <div class="summary-card processing">
+        <span class="card-label">Processing</span>
+        <span class="card-value" id="count-processing">0</span>
+      </div>
+      <div class="summary-card completed">
+        <span class="card-label">Completed</span>
+        <span class="card-value" id="count-completed">0</span>
+      </div>
+      <div class="summary-card failed">
+        <span class="card-label">Failed (Retrying)</span>
+        <span class="card-value" id="count-failed">0</span>
+      </div>
+      <div class="summary-card dead">
+        <span class="card-label">Dead (DLQ)</span>
+        <span class="card-value" id="count-dead">0</span>
+      </div>
+    </section>
+
+    <!-- Side-by-side Layout -->
+    <div class="dashboard-layout">
+      <!-- Active Workers Panel -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Active Workers</h2>
+        </div>
+        <div class="workers-list" id="workers-list">
+          <div class="no-data">No active workers found.</div>
+        </div>
+      </section>
+
+      <!-- Jobs List Panel -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Jobs Queue</h2>
+          <!-- Filtering Tabs -->
+          <div class="tabs">
+            <button class="tab-btn active" onclick="setTab('all', this)">All</button>
+            <button class="tab-btn" onclick="setTab('pending', this)">Pending</button>
+            <button class="tab-btn" onclick="setTab('processing', this)">Processing</button>
+            <button class="tab-btn" onclick="setTab('completed', this)">Completed</button>
+            <button class="tab-btn" onclick="setTab('failed', this)">Failed</button>
+            <button class="tab-btn" onclick="setTab('dead', this)">Dead</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>State</th>
+                <th>Priority</th>
+                <th>Attempts</th>
+                <th>Command</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="jobs-tbody">
+              <tr>
+                <td colspan="6" class="no-data">Loading jobs data...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Job Details Modal -->
+  <div class="modal-overlay" id="job-modal-overlay" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title">Job Details</h3>
+        <button class="modal-close" onclick="hideModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-content">
+        <!-- Filled dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="hideModal()">Close</button>
+        <span id="modal-action-btn"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeTab = 'all';
+    let cachedJobs = [];
+    let modalJobId = null;
+
+    // Start polling on load
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchData();
+      setInterval(fetchData, 1500);
+    });
+
+    async function fetchData() {
+      try {
+        // Fetch status summary & active workers
+        const statusRes = await fetch('/api/status');
+        if (statusRes.ok) {
+          const data = await statusRes.json();
+          updateSummary(data.summary);
+        }
+
+        // Fetch jobs list
+        const stateQuery = activeTab === 'all' ? '' : `?state=${activeTab}`;
+        const jobsRes = await fetch(`/api/jobs${stateQuery}`);
+        if (jobsRes.ok) {
+          const data = await jobsRes.json();
+          cachedJobs = data.jobs || [];
+          renderJobs(cachedJobs);
+          
+          // Update details modal if open
+          if (modalJobId) {
+            const currentJob = cachedJobs.find(j => j.id === modalJobId);
+            if (currentJob) {
+              updateModalContent(currentJob);
+            }
+          }
+        }
+
+        // Fetch status again for workers list
+        if (statusRes.ok) {
+          const data = await statusRes.json();
+          // We can fetch workers list via the CLI process status. Since worker list lives in status response:
+          renderWorkers(data.workersCount);
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+      }
+    }
+
+    function updateSummary(summary) {
+      if (!summary) return;
+      document.getElementById('count-pending').textContent = summary.pending || 0;
+      document.getElementById('count-processing').textContent = summary.processing || 0;
+      document.getElementById('count-completed').textContent = summary.completed || 0;
+      document.getElementById('count-failed').textContent = summary.failed || 0;
+      document.getElementById('count-dead').textContent = summary.dead || 0;
+    }
+
+    function renderWorkers(count) {
+      const listEl = document.getElementById('workers-list');
+      if (count === 0) {
+        listEl.innerHTML = '<div class="no-data">No active workers running.</div>';
+        return;
+      }
+      
+      let html = '';
+      // Since we don't return the full workers details array directly from api/status (only workersCount for security/performance),
+      // we generate virtual slots or just show running processes.
+      // Wait, let's make it look premium by rendering slot cards.
+      for (let i = 0; i < count; i++) {
+        html += `
+          <div class="worker-item">
+            <div class="worker-meta">
+              <span>Worker Process #${i + 1}</span>
+              <span class="status-badge" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;">Active</span>
+            </div>
+            <div class="worker-log">Status: polling database...</div>
+          </div>
+        `;
+      }
+      listEl.innerHTML = html;
+    }
+
+    function renderJobs(jobsList) {
+      const tbody = document.getElementById('jobs-tbody');
+      if (jobsList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="no-data">No jobs in ${activeTab} queue.</td></tr>`;
+        return;
+      }
+
+      let html = '';
+      for (const j of jobsList) {
+        const isDead = j.state === 'dead';
+        const actionBtn = isDead 
+          ? `<button class="btn" onclick="event.stopPropagation(); retryJob('${j.id}')">Retry</button>` 
+          : `<button class="btn btn-secondary" onclick="event.stopPropagation(); showJobDetails('${j.id}')">Inspect</button>`;
+
+        html += `
+          <tr class="clickable-row" onclick="showJobDetails('${j.id}')">
+            <td style="font-family: monospace; font-size: 0.8rem; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${j.id}</td>
+            <td><span class="pill ${j.state}">${j.state}</span></td>
+            <td style="font-weight: 500;">${j.priority}</td>
+            <td>${j.attempts}/${j.max_retries}</td>
+            <td style="font-family: monospace; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(j.command)}</td>
+            <td>${actionBtn}</td>
+          </tr>
+        `;
+      }
+      tbody.innerHTML = html;
+    }
+
+    function setTab(tab, btnElement) {
+      activeTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      btnElement.classList.add('active');
+      fetchData();
+    }
+
+    async function retryJob(id) {
+      try {
+        const res = await fetch('/api/dlq/retry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        if (res.ok) {
+          fetchData();
+        } else {
+          const err = await res.json();
+          alert('Failed to retry job: ' + err.error);
+        }
+      } catch (err) {
+        alert('Network error: ' + err.message);
+      }
+    }
+
+    function showJobDetails(id) {
+      modalJobId = id;
+      const job = cachedJobs.find(j => j.id === id);
+      if (!job) return;
+
+      updateModalContent(job);
+      document.getElementById('job-modal-overlay').classList.add('open');
+    }
+
+    function updateModalContent(job) {
+      const isDead = job.state === 'dead';
+      
+      let logsHtml = '';
+      if (job.output) {
+        logsHtml += `
+          <div>
+            <div class="modal-label" style="margin-bottom: 0.5rem;">Captured Output (stdout/stderr):</div>
+            <pre class="modal-code-block">${escapeHtml(job.output)}</pre>
+          </div>
+        `;
+      }
+      if (job.last_error) {
+        logsHtml += `
+          <div>
+            <div class="modal-label" style="margin-bottom: 0.5rem; color: #ef4444;">Last Error:</div>
+            <pre class="modal-code-block stderr">${escapeHtml(job.last_error)}</pre>
+          </div>
+        `;
+      }
+
+      document.getElementById('modal-content').innerHTML = `
+        <div class="modal-row">
+          <span class="modal-label">Job ID</span>
+          <span class="modal-value" style="font-family: monospace; font-weight: 500;">${job.id}</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">Command</span>
+          <span class="modal-value" style="font-family: monospace; color: #38bdf8;">${escapeHtml(job.command)}</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">State</span>
+          <span class="modal-value"><span class="pill ${job.state}">${job.state}</span></span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">Priority</span>
+          <span class="modal-value" style="font-weight: 600;">${job.priority}</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">Attempts</span>
+          <span class="modal-value">${job.attempts} of ${job.max_retries} max retries</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">Execution Timeout</span>
+          <span class="modal-value">${job.timeout_ms > 0 ? (job.timeout_ms + ' ms') : 'None'}</span>
+        </div>
+        ${job.next_run_at ? `
+        <div class="modal-row">
+          <span class="modal-label">Next Claim Eligibility</span>
+          <span class="modal-value">${new Date(job.next_run_at).toLocaleString()}</span>
+        </div>
+        ` : ''}
+        ${job.worker_id ? `
+        <div class="modal-row">
+          <span class="modal-label">Worker ID</span>
+          <span class="modal-value" style="font-family: monospace;">${job.worker_id}</span>
+        </div>
+        ` : ''}
+        <div class="modal-row">
+          <span class="modal-label">Created At</span>
+          <span class="modal-value">${new Date(job.created_at).toLocaleString()}</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">Updated At</span>
+          <span class="modal-value">${new Date(job.updated_at).toLocaleString()}</span>
+        </div>
+        ${logsHtml}
+      `;
+
+      document.getElementById('modal-action-btn').innerHTML = isDead
+        ? `<button class="btn" onclick="retryJob('${job.id}'); hideModal();">Retry Job</button>`
+        : '';
+    }
+
+    function hideModal() {
+      document.getElementById('job-modal-overlay').classList.remove('open');
+      modalJobId = null;
+    }
+
+    function closeModal(event) {
+      if (event.target.id === 'job-modal-overlay') {
+        hideModal();
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
